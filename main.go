@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"reflect"
 )
 
 type Properties struct {
@@ -23,7 +22,7 @@ type Properties struct {
 }
 
 type Property struct {
-	CN        string
+	//CN        string
 	Serial    *big.Int
 	NotBefore string
 	NotAfter  string
@@ -70,16 +69,15 @@ func rcerturl(certUrl *string) []*x509.Certificate {
 	return certs
 }
 
-func parsecert(certs []*x509.Certificate) {
-	//var property Property
+func parsecert(certs []*x509.Certificate) map[string]*Property {
+	cnmap := map[string]*Property{}
 	for _, v := range certs {
-		//property := []Property{}
 		cert, err := x509.ParseCertificate(v.Raw)
 		if err != nil {
 			log.Fatalf("failed to parse certificate: " + err.Error())
 		}
+		key := cert.Subject.CommonName
 		p := Property{
-			CN:        cert.Subject.CommonName,
 			Serial:    cert.SerialNumber,
 			NotBefore: cert.NotBefore.String(),
 			NotAfter:  cert.NotAfter.String(),
@@ -87,23 +85,16 @@ func parsecert(certs []*x509.Certificate) {
 			SAN_IP:    cert.IPAddresses,
 			Issuer:    cert.Issuer,
 		}
-		//property = append(property, p)
-		//fmt.Printf("%s", property)
-		fmt.Print("=======================\n")
-		presults(p)
-		fmt.Print("=======================\n")
+		cnmap[key] = &p
 	}
-	//return property
+	return cnmap
 }
 
-func presults(property Property) {
-	s := reflect.ValueOf(&property).Elem()
-	typeOfT := s.Type()
-
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
-		fmt.Printf("%d: %s: %+v\n",
-			i, typeOfT.Field(i).Name, f.Interface())
+func presults(property map[string]*Property) {
+	for k, v := range property {
+		fmt.Println("================")
+		fmt.Printf("CN: %s\nSerial: %v\nNotBefore: %s\nNotAfter: %s\nSAN_DNS: %v\nSAN_IP: %v\nIssuer: %v\n", k, v.Serial, v.NotBefore, v.NotAfter, v.SAN_DNS, v.SAN_IP, v.Issuer)
+		fmt.Println("================")
 	}
 }
 
@@ -117,8 +108,8 @@ func main() {
 	}
 
 	if *certFile != "" {
-		parsecert(rcertfile(certFile))
+		presults(parsecert(rcertfile(certFile)))
 	} else if *certUrl != "" {
-		parsecert(rcerturl(certUrl))
+		presults(parsecert(rcerturl(certUrl)))
 	}
 }
